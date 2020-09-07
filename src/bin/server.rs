@@ -1,8 +1,11 @@
 use anyhow::{self, Context};
-use std::net::TcpListener;
+use tokio::net::TcpListener;
 
-fn main() -> anyhow::Result<()> {
-    let socket = TcpListener::bind("127.0.0.1:0").context("failed to bind adress")?;
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let socket = TcpListener::bind("127.0.0.1:0")
+        .await
+        .context("failed to bind adress")?;
     println!("listening on {}", socket.local_addr()?);
     Ok(())
 }
