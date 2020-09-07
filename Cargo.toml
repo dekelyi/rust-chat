@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["Dekel Yigal <dekelyi@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "server"
 
 [dependencies]
 anyhow = "1.0.32"
