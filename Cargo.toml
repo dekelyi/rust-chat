@@ -8,5 +8,7 @@ edition = "2018"
 name = "server"
 
 [dependencies]
-anyhow = "1.0.32"
-tokio = { version = "0.2.22", features = ["full"] }
+anyhow = "*"
+tokio = { version = "*", features = ["full"] }
+log = "*"
+pretty_env_logger = "*"
