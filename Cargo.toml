@@ -10,5 +10,6 @@ name = "server"
 [dependencies]
 anyhow = "*"
 tokio = { version = "*", features = ["full"] }
+bytes = "*"
 log = "*"
 pretty_env_logger = "*"
