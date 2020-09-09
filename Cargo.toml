@@ -1,5 +1,5 @@
 [package]
-name = "rust-shell"
+name = "rust-chat"
 version = "0.1.0"
 authors = ["Dekel Yigal <dekelyi@gmail.com>"]
 edition = "2018"

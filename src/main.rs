@@ -1,22 +1,19 @@
 use anyhow::{self, Context};
-use std::sync::Arc;
-use tokio::{net, prelude::*, stream::StreamExt, sync::Mutex, task};
-
-type Stream = Arc<Mutex<net::TcpStream>>;
+use tokio::{net, prelude::*, stream::StreamExt, task};
 
 struct ChatServer {
     listener: net::TcpListener,
 }
 
 impl ChatServer {
-    async fn handle_connections(stream: &mut Stream) {
+    async fn handle_connections(stream: &mut net::TcpStream) {
         let mut buf = bytes::BytesMut::with_capacity(64);
-        let addr = stream.lock().await.peer_addr().unwrap();
+        let addr = stream.peer_addr().unwrap();
 
         log::info!("{}: Got connection", addr);
         loop {
-            let res = stream.lock().await.read_buf(&mut buf).await;
-            let res = res.or(stream.lock().await.write_buf(&mut buf).await);
+            let res = stream.read_buf(&mut buf).await;
+            let res = res.or(stream.write_buf(&mut buf).await);
             if let Ok(0) | Err(_) = res {
                 break;
             }
@@ -25,23 +22,17 @@ impl ChatServer {
     }
 
     async fn run(&mut self) {
-        let mut connected: Vec<(Stream, task::JoinHandle<()>)> = Default::default();
         while let Some(stream) = self.listener.incoming().next().await {
-            let stream = match stream {
+            let mut stream = match stream {
                 Ok(s) => s,
                 Err(err) => {
                     log::error!("{}", err);
                     continue;
                 }
             };
-            let stream = Arc::new(Mutex::new(stream));
-            let handle = {
-                let mut stream = stream.clone();
-                task::spawn(async move {
-                    ChatServer::handle_connections(&mut stream).await;
-                })
-            };
-            connected.push((stream, handle));
+            let _handle = task::spawn(async move {
+                ChatServer::handle_connections(&mut stream).await;
+            });
         }
     }
 
