@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Dekel Yigal <dekelyi@gmail.com>"]
 edition = "2018"
 
-[[bin]]
-name = "server"
-
 [dependencies]
 anyhow = "*"
 tokio = { version = "*", features = ["full"] }
