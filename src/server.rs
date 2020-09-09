@@ -1,11 +1,13 @@
 use anyhow::{self, Context};
 use tokio::{net, prelude::*, stream::StreamExt, task};
 
+/// a chat server instance
 pub struct ChatServer {
     listener: net::TcpListener,
 }
 
 impl ChatServer {
+    /// handle a new connection
     async fn handle_connections(stream: &mut net::TcpStream) {
         let mut buf = bytes::BytesMut::with_capacity(64);
         let addr = stream.peer_addr().unwrap();
@@ -21,6 +23,7 @@ impl ChatServer {
         log::info!("{}: Connection closed", addr);
     }
 
+    /// run the main event loop
     pub async fn run(&mut self) {
         while let Some(stream) = self.listener.incoming().next().await {
             let mut stream = match stream {
@@ -36,6 +39,7 @@ impl ChatServer {
         }
     }
 
+    /// Create a new instance of a bound server
     pub async fn bind(port: u16) -> anyhow::Result<Self> {
         let res = Self {
             listener: net::TcpListener::bind(("127.0.0.1", port))

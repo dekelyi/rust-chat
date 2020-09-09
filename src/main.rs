@@ -12,7 +12,7 @@ fn init_log() -> Result<(), log::SetLoggerError> {
 async fn main() -> anyhow::Result<()> {
     init_log()?;
 
-    let mut socket = server::ChatServer::bind(8000u16).await?;
+    let mut socket = server::ChatServer::bind(8000).await?;
 
     socket.run().await;
 
