@@ -1,11 +1,10 @@
 use anyhow::{self, Context};
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::{net, sync::Mutex, task};
+use tokio::{net, sync::mpsc, task};
 
 /// a chat server instance
 pub struct UdpServer {
-    listener: Arc<Mutex<net::UdpSocket>>,
+    listener: net::UdpSocket,
 }
 
 impl UdpServer {
@@ -17,18 +16,22 @@ impl UdpServer {
 
     /// run the main event loop
     pub async fn run(&mut self) {
+        let (tx, mut rx) = mpsc::unbounded_channel::<(Vec<u8>, SocketAddr)>();
+        let mut buf = [0u8; 32];
         loop {
-            let mut buf = [0u8; 32];
-            match self.listener.lock().await.recv_from(&mut buf).await {
-                Err(_) => continue,
-                Ok((_, addr)) => {
-                    let socket = self.listener.clone();
-                    let _res = task::spawn(async move {
+            tokio::select! {
+                Some((res, addr)) = rx.recv() => {
+                    self.listener.send_to(&res, addr).await.unwrap();
+                },
+                Ok((n, addr)) = self.listener.recv_from(&mut buf) => {
+                    if n == 0 { continue };
+                    let tx = tx.clone();
+                    task::spawn(async move {
                         let res = UdpServer::handle_msg(buf.to_vec(), addr).await;
-                        socket.lock().await.send_to(&res[..], addr).await.unwrap();
+                        tx.send((res, addr)).unwrap();
                     });
-                }
-            }
+                },
+            };
         }
     }
 
@@ -37,9 +40,9 @@ impl UdpServer {
         let listener = net::UdpSocket::bind(("127.0.0.1", port))
             .await
             .context("failed to bind adress")?;
-        let listener = Arc::new(Mutex::new(listener));
+        // let listener = Arc::new(Mutex::new(listener));
         let res = Self { listener };
-        log::info!("listening on {}", res.listener.lock().await.local_addr()?);
+        log::info!("listening on {}", res.listener.local_addr()?);
         Ok(res)
     }
 }
