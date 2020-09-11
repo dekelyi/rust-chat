@@ -1,5 +1,5 @@
 // mod server;
-mod udp;
+mod server;
 
 /// init the logger
 /// Log level: `info` by default, use `LOG` env to change
@@ -14,7 +14,7 @@ fn init_log() -> Result<(), log::SetLoggerError> {
 async fn main() -> anyhow::Result<()> {
     init_log()?;
 
-    let mut socket = udp::UdpServer::bind(8000).await?;
+    let mut socket = server::ChatServer::bind(8000).await?;
 
     socket.run().await;
 

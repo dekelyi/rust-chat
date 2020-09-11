@@ -1,51 +1,47 @@
 use anyhow::{self, Context};
-use tokio::{net, prelude::*, stream::StreamExt, task};
+use std::net::SocketAddr;
+use tokio::{net, sync::mpsc, task};
 
 /// a chat server instance
 pub struct ChatServer {
-    listener: net::TcpListener,
+    listener: net::UdpSocket,
 }
 
 impl ChatServer {
     /// handle a new connection
-    async fn handle_connections(stream: &mut net::TcpStream) {
-        let mut buf = bytes::BytesMut::with_capacity(64);
-        let addr = stream.peer_addr().unwrap();
-
-        log::info!("{}: Got connection", addr);
-        loop {
-            let res = stream.read_buf(&mut buf).await;
-            let res = res.or(stream.write_buf(&mut buf).await);
-            if let Ok(0) | Err(_) = res {
-                break;
-            }
-        }
-        log::info!("{}: Connection closed", addr);
+    async fn handle_msg(buf: Vec<u8>, addr: SocketAddr) -> Vec<u8> {
+        log::info!("{}: Got packet", addr);
+        buf
     }
 
     /// run the main event loop
     pub async fn run(&mut self) {
-        while let Some(stream) = self.listener.incoming().next().await {
-            let mut stream = match stream {
-                Ok(s) => s,
-                Err(err) => {
-                    log::error!("{}", err);
-                    continue;
-                }
+        let (tx, mut rx) = mpsc::unbounded_channel::<(Vec<u8>, SocketAddr)>();
+        let mut buf = [0u8; 32];
+        loop {
+            tokio::select! {
+                Some((res, addr)) = rx.recv() => {
+                    self.listener.send_to(&res, addr).await.unwrap();
+                },
+                Ok((n, addr)) = self.listener.recv_from(&mut buf) => {
+                    if n == 0 { continue };
+                    let tx = tx.clone();
+                    task::spawn(async move {
+                        let res = ChatServer::handle_msg(buf.to_vec(), addr).await;
+                        tx.send((res, addr)).unwrap();
+                    });
+                },
             };
-            let _handle = task::spawn(async move {
-                ChatServer::handle_connections(&mut stream).await;
-            });
         }
     }
 
     /// Create a new instance of a bound server
     pub async fn bind(port: u16) -> anyhow::Result<Self> {
-        let res = Self {
-            listener: net::TcpListener::bind(("127.0.0.1", port))
-                .await
-                .context("failed to bind adress")?,
-        };
+        let listener = net::UdpSocket::bind(("127.0.0.1", port))
+            .await
+            .context("failed to bind adress")?;
+        // let listener = Arc::new(Mutex::new(listener));
+        let res = Self { listener };
         log::info!("listening on {}", res.listener.local_addr()?);
         Ok(res)
     }
