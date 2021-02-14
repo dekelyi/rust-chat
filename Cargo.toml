@@ -10,3 +10,5 @@ tokio = { version = "*", features = ["full"] }
 bytes = "*"
 log = "*"
 pretty_env_logger = "*"
+serde = { version = "*", features = ["derive"] }
+rmp-serde = "*"

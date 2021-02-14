@@ -1,4 +1,5 @@
 // mod server;
+mod packet;
 mod server;
 
 /// init the logger

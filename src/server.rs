@@ -1,4 +1,6 @@
+use crate::packet;
 use anyhow::{self, Context};
+use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use tokio::{net, sync::mpsc, task};
 
@@ -9,9 +11,11 @@ pub struct ChatServer {
 
 impl ChatServer {
     /// handle a new connection
-    async fn handle_msg(buf: Vec<u8>, addr: SocketAddr) -> Vec<u8> {
+    async fn handle_msg(buf: Vec<u8>, addr: SocketAddr) -> anyhow::Result<Vec<u8>> {
         log::info!("{}: Got packet", addr);
-        buf
+        let buf: &[u8] = &buf;
+        let msg = packet::Packet::try_from(buf)?;
+        msg.try_into()
     }
 
     /// run the main event loop
@@ -28,6 +32,13 @@ impl ChatServer {
                     let tx = tx.clone();
                     task::spawn(async move {
                         let res = ChatServer::handle_msg(buf.to_vec(), addr).await;
+                        let res = match res {
+                            Ok(buf) => buf,
+                            Err(err) => {
+                                let msg = packet::Packet::Error { err: err.to_string() };
+                                msg.try_into().expect("failed to parse an error")
+                            }
+                        };
                         tx.send((res, addr)).unwrap();
                     });
                 },
